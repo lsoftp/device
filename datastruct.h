@@ -22,6 +22,11 @@
 #include <QTextCodec>
 
 #define BUFFER_SIZE 1560
+#define WORD_COPY(d,i,v) {d[i]=(0xff00&v)>>8; d[i+1]=(0x00ff&v);}
+#define DWORD_COPY(d,i,v) {d[i]=(0xff000000&v)>>24; d[i+1]=(0x00ff0000&v)>>16;d[i+2]=(0x0000ff00&v)>>8; d[i+3]=v&0xff;}
+
+#define TO_WORD(d,i,v)  {v= ((0x0000|d[i])<<8)|d[i+1];}
+#define TO_DWORD(d,i,v) {v= (0x00000000|d[i])<<8; v=(v|d[i+1])<<8;v= (v|d[i+2])<<8;v=v|d[i+3];}
 
 using namespace std;
 
@@ -290,6 +295,45 @@ struct MsgHeader
         }
         return j;
     }
+};
+
+class SampleAck
+{
+public:
+    MYWORD h;
+    int toStream(unsigned char * o)
+    {
+
+        o[0]=0;
+        o[1]=4;
+
+        o[4]=0;
+        h=30000;
+        WORD_COPY(o,5,h);
+        return 7;
+    }
+
+};
+
+class ResultAck
+{
+public:
+    MYBYTE num;
+    MYWORD r1;
+    MYWORD r2;
+
+    int toStream(MYBYTE * o){
+        o[0]=2;
+        o[1]=11;
+
+        o[4]=0;
+        o[5]=2;
+        r1=12345; r2=67890;
+        DWORD_COPY(o,6,r1);
+        DWORD_COPY(o,10,r2);
+        return 14;
+    }
+
 };
 
 class TerminalAck

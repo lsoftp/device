@@ -97,6 +97,8 @@ void TcpClient::stop()
 
 int TcpClient::getMsgFromBuf()
 {
+    static unsigned char acksn=0;
+    static int i1=0;
     RecvStream recvstream,rs;
     static int i=-1,j=-1;
     static int t=0;
@@ -171,19 +173,36 @@ int TcpClient::getMsgFromBuf()
                     emit addPacket(s,s1,s2);
                 t++;
                 m_lasthearttime=QDateTime::currentDateTime();
+                unsigned char c1=rs.stream[0];
                 //cout << "msgid "<<hex<<header.msgId<<endl;
-                switch(header.msgId)
+                unsigned char c= rs.stream[2];
+
+                printf("askcn %d, c %d ,i1 %d\n",acksn ,c,i1);
+                                if(i1)
+                                {
+                                    if(acksn==c)
+                                    {printf("*****discard msg cmd %d, sn %d, \n",rs.stream[0],c);
+                                    return r;}
+                                 }
+                                if(i1==0)
+                                {
+                                    acksn=c;
+                                    i1=1;
+                                }
+
+                acksn=c;
+                switch(c1)
                 {
-                    case 0x0100: handleRegister(&rs);break;
-                    case 0x0102: handleAuthentication(&rs);break;
-                    case 0x0002:handleheartbeat(&rs);
-                                m_lasthearttime=QDateTime::currentDateTime();
+                    case 0x00: handleSample(&rs);break;
+                    case 0x01: handleReagent(&rs);break;
+                    case 0x02:handleResult(&rs);
+                               // m_lasthearttime=QDateTime::currentDateTime();
                     break;
-                    case 0x0704:handleblind(&rs);break;
-                    case 0x0200:handleposition(&rs);break;
-                    case 0x0705:handcan(&rs);break;
-                    case 0x0fff: handlebox(&rs);break;
-                    case 0x0001: handleboxconfig(&rs);break;
+                    case 0x03:handleblind(&rs);break;
+                    case 0x04:handleposition(&rs);break;
+                    case 0x05:handcan(&rs);break;
+                    case 0x06: handlebox(&rs);break;
+                    case 0x07: handleboxconfig(&rs);break;
                     default:
                             handledefault(&rs);  break;
                 }
@@ -395,64 +414,80 @@ void TcpServer::handlebox(RecvStream* prs)
 //cout << "gb2312-->utf-8 in=" << in_gb2312 << ",out=" << out << endl;
 //}
 
-void TcpClient::handleRegister(RecvStream* prs)
+void TcpClient::handleSample(RecvStream* prs)
 {
     Msg msg;
-    RegisterAck ra;
-    MsgHeader head;
-    char *in_utf8 = "sound";
-    QString out=UTF82GBK(  in_utf8);
-    // utf-8-->gb2312
-    //CodeConverter cc = CodeConverter("utf-8","gb2312");
-    //cc.convert(in_utf8,strlen(in_utf8),out,OUTLEN);
-    //cout << "utf-8-->gb2312 in=" << in_utf8 << ",out=" << out << endl;
-
-    head.fromStream(prs->stream);
-    ra.header = head;
-    ra.header.msgId = 0x8100;
-    ra.sn=head.msgSerialNumber;
-    ra.authenticationCode =out.toStdString();
-
-    ra.result = 0;
-    ra.header.property = 8;
+    SampleAck sa;
     unsigned char ori[1024];
     int len;
-    len = ra.toStream(ori);
+    len = sa.toStream(ori);
+    //ori[0]=1;
+    ori[2]=getSn();
+    ori[3]=prs->stream[2];
     len = addCheckCode(ori,len);
+    toComposedMsg(ori,len, msg.stream, &(msg.len));
+    msg.isAck =true;
+    msgList.push_front(msg);
+    printf("send\n");
+    for(int i=0; i<msg.len;i++)
+        printf("%02x ", msg.stream[i]);
+    printf("\n");
+    fflush(stdout);
+     msgList.push_front(msg);
+     msgList.push_front(msg);
 
+}
+unsigned char TcpClient::sn=0;
+unsigned char TcpClient::getSn()
+{
+    if(sn<255) sn++;
+    else sn=0;
+    return sn;
+}
+void TcpClient::handleReagent(RecvStream* prs)
+{
+    Msg msg;
+    SampleAck sa;
+    unsigned char ori[1024];
+    int len;
+    len = sa.toStream(ori);
+    ori[0]=1;
+    ori[2]=getSn();
+    ori[3]=prs->stream[2];
+    len = addCheckCode(ori,len);
+    toComposedMsg(ori,len, msg.stream, &(msg.len));
+    msg.isAck =true;
+    msgList.push_front(msg);
+    printf("send\n");
+    for(int i=0; i<msg.len;i++)
+        printf("%02x ", msg.stream[i]);
+    printf("\n");
+    fflush(stdout);
+    msgList.push_front(msg);
+    msgList.push_front(msg);
+}
+
+void TcpClient::handleResult(RecvStream* prs)
+{
+    Msg msg;
+    ResultAck sa;
+    unsigned char ori[1024];
+    int len;
+    len = sa.toStream(ori);
+    //ori[0]=1;
+    ori[2]=getSn();
+    ori[3]=prs->stream[2];
+    len = addCheckCode(ori,len);
     toComposedMsg(ori,len, msg.stream, &(msg.len));
     msg.isAck =true;
     printf("send\n");
     for(int i=0; i<msg.len;i++)
         printf("%02x ", msg.stream[i]);
     printf("\n");
-    mutex.lock();
+    fflush(stdout);
     msgList.push_front(msg);
-    mutex.unlock();
-
-}
-
-void TcpClient::handleheartbeat(RecvStream* prs)
-{
-    Msg msg;
-    PlatformAck pa;
-    pa.header.fromStream(prs->stream);
-    pa.serialNumber=pa.header.msgSerialNumber;
-    pa.header.msgId = 0x8001;
-    pa.header.property =5;
-    pa.result = 0;
-    pa.msgId = 0x0002;
-    unsigned char ori[1024];
-    int len;
-    len = pa.toStream(ori);
-    len = addCheckCode(ori,len);
-    toComposedMsg(ori,len, msg.stream, &(msg.len));
-    msg.isAck =true;
-    mutex.lock();
     msgList.push_front(msg);
-    mutex.unlock();
-
-
+    msgList.push_front(msg);
 }
 void TcpClient::handledefault(RecvStream* prs)
 {
@@ -609,8 +644,8 @@ void TcpClient::handleblind(RecvStream* prs){
     msgList.push_front(msg);
     mutex.unlock();
 }
-
-void TcpClient::handleAuthentication(RecvStream* prs)
+/*
+void TcpClient::handleResult(RecvStream* prs)
 {
     Msg msg;
     PlatformAck pa;
@@ -632,7 +667,7 @@ void TcpClient::handleAuthentication(RecvStream* prs)
 
 
 }
-
+*/
 void TcpClient::acceptsocket()
 {
 
@@ -775,7 +810,7 @@ void TcpClient::getmsg_send()
             }
             else
             {
-                 printf("send chars%d\n",sendChars);
+                // printf("send chars%d\n",sendChars);
                 pmsg->sendChars += sendChars;
             }
         }
@@ -921,16 +956,14 @@ int TcpClient::addCheckCode(unsigned char * original, int len)
 
 int TcpClient::checkCode(unsigned char * original, int len)
 {
-    unsigned char c=0x00;
-    if(len<2)
+    int i;
+    unsigned char c;
+    if(len<4)
     {
         return -2;
     }
-    for(int i=0; i<len-1;i++)
-    {
-        c = c^original[i];
-    }
-    if(original[len-1] != c)
+    c=original[1];
+    if((len-4)!= c)
     {
         return -1;
     }

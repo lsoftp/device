@@ -79,9 +79,9 @@ private:
      int checkCode(unsigned char * original, int len);
      Msg * getMsgToSend();
      int  handleMsgList();
-     void handleRegister(RecvStream* prs);
-     void handleAuthentication(RecvStream* prs);
-     void handleheartbeat(RecvStream* prs);
+     void handleSample(RecvStream* prs);
+     void handleReagent(RecvStream* prs);
+     void handleResult(RecvStream* prs);
      void handleposition(RecvStream* prs);
      void handleblind(RecvStream* prs);
      void handcan(RecvStream* prs);
@@ -92,6 +92,8 @@ private:
      void handleboxconfig(RecvStream* prs);
      void removesnfrommsglist(MYWORD sn);
     int getMsgFromBuf();
+        static unsigned char  sn;
+       static unsigned char getSn();
 signals:
     //void addPacket(string,string,QTime,RecvStream);
         void addPacket(string,string,string);
