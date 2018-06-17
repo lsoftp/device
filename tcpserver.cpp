@@ -191,7 +191,7 @@ void TcpServer::slot_updateUserList()
         QAbstractSocket::SocketState curstate = (*iter)->ac_socket->state();
         QDateTime now=QDateTime::currentDateTime();
         int t =pc->m_lasthearttime.secsTo(now);
-        if(t>140) pc->stop();
+        //if(t>140) pc->stop();
         if(t>3) db.flush();
 
         pc->getmsg_send();

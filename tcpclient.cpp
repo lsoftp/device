@@ -10,9 +10,14 @@ TcpClient::TcpClient(QObject *parent) :
     QObject(parent)
 {
     //add proxy
-    proxy_socket = new QTcpSocket(this);
-    proxy_socket->connectToHost(QHostAddress("101.201.174.75"),4133);
-
+   // proxy_socket = new QTcpSocket(this);
+  //  proxy_socket->connectToHost(QHostAddress("101.201.174.75"),4133);
+  //  m_isOkConect = proxy_socket->waitForConnected(3000);
+  //  connect(proxy_socket, SIGNAL(disconnected()), this, SLOT(onDisConnect()));
+}
+void TcpClient::onDisConnect()
+{
+    m_isOkConect=false;
 }
 
 void TcpClient::setsock(QTcpSocket* p)
@@ -35,9 +40,9 @@ void TcpClient::setsock(QTcpSocket* p)
 TcpClient::~TcpClient()
 {
     //add proxy
-    proxy_socket->close();
-    delete proxy_socket;
-}
+   // proxy_socket->close();
+   // delete proxy_socket;
+}//
 void TcpClient::setConfig(bool b)
 {
     printf("isconfig is %d\n",isconfig);
@@ -138,7 +143,7 @@ int TcpClient::getMsgFromBuf()
             QByteArray qb;
             qb.resize(recvstream.size);
                memcpy(qb.data(), recvstream.stream, recvstream.size);
-               proxy_socket->write(qb);
+               //proxy_socket->write(qb);
             //99999999999999999999999999999
             //r =0;
             toOriginalMsg(recvstream.stream,recvstream.size, rs.stream,&rs.size);

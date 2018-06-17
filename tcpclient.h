@@ -57,7 +57,7 @@ private:
     int accept_fd;
     int sendchar=-1;
     int port;
-
+    bool m_isOkConect;
     //sockaddr_in myserver;
     //sockaddr_in remote_addr;
     RecvBuf recvbuf;
@@ -115,6 +115,7 @@ public slots:
     void slot_readdata();
     void stop();
     void getmsg_send();
+    void onDisConnect();
 };
 
 
